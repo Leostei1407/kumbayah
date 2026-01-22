@@ -1,0 +1,49 @@
+## Entornos virtuales
+.venv/
+venv/
+env/
+
+## Caché de Python y archivos compilados
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+## Compilación y distribución
+build/
+dist/
+*.egg-info/
+localpycs/
+*.whl
+*.pyz
+
+## Ejecutables y binarios
+*.exe
+*.dll
+*.so
+*.dylib
+
+## Secretos y variables de entorno
+.env
+*.pem
+*.key
+id_rsa*
+*.p12
+
+## Bases de datos y datos
+*.db
+*.sqlite
+data/
+
+## Cachés y resultados de pruebas
+.pytest_cache/
+.cache/
+
+## IDEs y archivos del sistema operativo
+.vscode/
+Thumbs.db
+.DS_Store
+
+## PyInstaller
+*.spec
+main/

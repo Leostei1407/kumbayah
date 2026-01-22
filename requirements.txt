@@ -1,0 +1,3 @@
+# Dependencias para empaquetado
+pyinstaller
+ttkbootstrap
