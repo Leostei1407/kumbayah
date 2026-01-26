@@ -16,6 +16,7 @@ dist/
 localpycs/
 *.whl
 *.pyz
+*.zip
 
 ## Ejecutables y binarios
 *.exe
