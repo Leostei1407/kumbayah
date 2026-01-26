@@ -2,19 +2,26 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime, date
 import calendar
-from db import Database
+from modules.database import Database
+from modules.clients import Clients
+from modules.reservations import Reservations
 import tkinter.font as tkfont
+from modules.calendar_logic import CalendarLogic
 
 
 class CalendarApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Kumbayah - Calendario de Reservas (offline)')
-        self.db = Database('kumbayah.db')
+        
+        # Configuración de la base de datos
+        self.db_manager = Database('kumbayah.db')
+        self.db_manager.create_tables()
+        db_conn = self.db_manager.connect()
 
-        self.now = datetime.now()
-        self.current_year = self.now.year
-        self.current_month = self.now.month
+        self.clients_manager = Clients(db_conn)
+        self.reservations_manager = Reservations(db_conn)
+        self.calendar_logic = CalendarLogic(self.db_manager, self.clients_manager, self.reservations_manager)
 
         # Estilos y fuentes
         self.style = ttk.Style()
@@ -54,51 +61,52 @@ class CalendarApp:
         self.day_buttons = []
         self.draw_calendar()
 
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def on_closing(self):
+        self.db_manager.close()
+        self.root.destroy()
+
     def prev_month(self):
-        if self.current_month == 1:
-            self.current_month = 12
-            self.current_year -= 1
-        else:
-            self.current_month -= 1
+        self.calendar_logic.prev_month()
         self.draw_calendar()
 
     def next_month(self):
-        if self.current_month == 12:
-            self.current_month = 1
-            self.current_year += 1
-        else:
-            self.current_month += 1
+        self.calendar_logic.next_month()
         self.draw_calendar()
 
     def draw_calendar(self):
         for w in self.calendar_frame.winfo_children():
             w.destroy()
 
-        self.title_label.config(text=f'{calendar.month_name[self.current_month]} {self.current_year}')
+        current_month, current_year = self.calendar_logic.get_current_month_year()
+        self.title_label.config(text=f'{calendar.month_name[current_month]} {current_year}')
 
         # Encabezados de días de la semana
         days = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
         for i, d in enumerate(days):
             ttk.Label(self.calendar_frame, text=d).grid(row=0, column=i, padx=4, pady=2)
 
-        month_cal = calendar.Calendar(firstweekday=0).monthdatescalendar(self.current_year, self.current_month)
+        month_calendar_data = self.calendar_logic.get_month_calendar_data()
         self.day_buttons = []
-        for r, week in enumerate(month_cal, start=1):
-            for c, day in enumerate(week):
-                day_str = day.isoformat()
-                # Usar Canvas para la celda: dibujamos un rectángulo y textos (no afecta layout al cambiar colores)
+        for r, week_data in enumerate(month_calendar_data, start=1):
+            for c, day_info in enumerate(week_data):
+                day = day_info['date']
+                day_str = day_info['date_str']
+                is_current_month = day_info['is_current_month']
+                booking = day_info['booking']
+                avail = day_info['is_available']
+
                 canvas = tk.Canvas(self.calendar_frame, width=140, height=110, highlightthickness=0)
                 canvas.grid(row=r, column=c, padx=6, pady=6, sticky='nsew')
                 canvas.config(bg='#ffffff')
                 self.calendar_frame.grid_rowconfigure(r, weight=1, minsize=110)
                 self.calendar_frame.grid_columnconfigure(c, weight=1, minsize=140)
 
-                # dibujar fondo y textos
                 rect = canvas.create_rectangle(0, 0, 140, 110, fill='#ffffff', width=0)
                 day_txt = canvas.create_text(8, 8, anchor='nw', text=str(day.day), font=self.font_day, fill='#000000')
                 name_txt = canvas.create_text(8, 36, anchor='nw', text='', font=self.font_client, width=120)
 
-                # manejadores de clic
                 def _on_click(ev, d=day):
                     self.on_day_click(d)
                 def _on_right_click(ev, d=day):
@@ -107,17 +115,11 @@ class CalendarApp:
                 canvas.bind('<Button-1>', _on_click)
                 canvas.bind('<Button-3>', _on_right_click)
 
-                # al pasar el cursor: cambiar el relleno del rectángulo sin afectar el diseño
-                # Sin cambio al pasar el cursor: mantener siempre el color base (sin efecto de hover)
-
-                # Estado visual y contenido
-                if day.month != self.current_month:
+                if not is_current_month:
                     canvas.itemconfig(day_txt, fill='#9e9e9e')
                     canvas.itemconfig(rect, fill='#f5f5f5')
                     canvas.itemconfig(name_txt, text='')
                 else:
-                    booking = self.db.get_booking(day_str)
-                    avail = self.db.is_available(day_str)
                     if booking:
                         status = booking.get('payment_status','')
                         color = '#ffc0cb' if status == 'Completo' else '#ffcc80'
@@ -134,19 +136,21 @@ class CalendarApp:
                 self.day_buttons.append((day, canvas, {'rect': rect, 'day_txt': day_txt, 'name_txt': name_txt}))
 
     def update_cell(self, day):
-        # Actualizar solo la celda de un día en lugar de redibujar todo el calendario
         for entry in self.day_buttons:
-            # cada entrada es (day, canvas, ids)
             if len(entry) < 3:
                 continue
             d, canvas, ids = entry
             if d == day:
-                day_str = d.isoformat()
+                day_info = self.calendar_logic.get_day_status(d)
+                is_current_month = day_info['is_current_month']
+                booking = day_info['booking']
+                avail = day_info['is_available']
+
                 rect = ids.get('rect')
                 name_txt = ids.get('name_txt')
                 day_txt = ids.get('day_txt')
 
-                if d.month != self.current_month:
+                if not is_current_month:
                     try:
                         canvas.itemconfig(day_txt, fill='#9e9e9e')
                         canvas.itemconfig(rect, fill='#f5f5f5')
@@ -155,8 +159,6 @@ class CalendarApp:
                         pass
                     return
 
-                booking = self.db.get_booking(day_str)
-                avail = self.db.is_available(day_str)
                 if booking:
                     status = booking.get('payment_status','')
                     color = '#ffc0cb' if status == 'Completo' else '#ffcc80'
@@ -181,26 +183,27 @@ class CalendarApp:
                 return
 
     def toggle_availability(self, day):
-        if day.month != self.current_month:
+        current_month, _ = self.calendar_logic.get_current_month_year()
+        if day.month != current_month:
             return
-        day_str = day.isoformat()
-        cur = self.db.is_available(day_str)
-        self.db.set_availability(day_str, 0 if cur else 1)
-        # actualizar solo la celda afectada para evitar redibujar todo el calendario
+        self.calendar_logic.toggle_day_availability(day)
         self.update_cell(day)
 
     def on_day_click(self, day):
-        if day.month != self.current_month:
+        current_month, _ = self.calendar_logic.get_current_month_year()
+        if day.month != current_month:
             return
-        day_str = day.isoformat()
-        booking = self.db.get_booking(day_str)
-        avail = self.db.is_available(day_str)
+        
+        day_info = self.calendar_logic.get_day_status(day)
+        booking = day_info['booking']
+        avail = day_info['is_available']
+
         if booking:
             self.show_booking_details(booking)
         elif not avail:
             messagebox.showinfo('No disponible', 'Este día no está disponible para reservas.')
         else:
-            self.open_booking_form(day_str)
+            self.open_booking_form(day_info['date_str'])
 
     def show_booking_details(self, booking):
         # Abrir un diálogo de solo lectura con un botón Editar para cambiar a modo edición
@@ -316,17 +319,11 @@ class CalendarApp:
                     messagebox.showerror('Error', 'Referencia debe tener al menos 6 dígitos.')
                     return
 
-            # guardar en la BD
-            self.db.add_booking({
-                'date': booking['date'],
-                'first_name': fn,
-                'last_name': ln,
-                'phone': phone,
-                'amount': amount_val,
-                'payment_status': ps,
-                'payment_method': pm,
-                'reference': ref,
-            })
+            self.calendar_logic.add_or_update_booking(
+                booking['date'],
+                {'first_name': fn, 'last_name': ln, 'phone': phone},
+                {'amount': amount_val, 'payment_status': ps, 'payment_method': pm, 'reference': ref}
+            )
             # actualizar el objeto booking local y volver a solo lectura
             booking['first_name'] = fn
             booking['last_name'] = ln
@@ -353,7 +350,7 @@ class CalendarApp:
 
         def delete():
             if messagebox.askyesno('Confirmar', '¿Eliminar esta reserva?'):
-                self.db.delete_booking(booking['date'])
+                self.calendar_logic.delete_booking(booking['date'])
                 form.destroy()
                 # actualizar solo la celda de ese día
                 try:
@@ -433,17 +430,11 @@ class CalendarApp:
                     messagebox.showerror('Error', 'Referencia debe tener al menos 6 dígitos.')
                     return
 
-            # Guardar reserva
-            self.db.add_booking({
-                'date': day_str,
-                'first_name': fn,
-                'last_name': ln,
-                'phone': phone,
-                'amount': amount_val,
-                'payment_status': ps,
-                'payment_method': pm,
-                'reference': ref,
-            })
+            self.calendar_logic.add_or_update_booking(
+                day_str,
+                {'first_name': fn, 'last_name': ln, 'phone': phone},
+                {'amount': amount_val, 'payment_status': ps, 'payment_method': pm, 'reference': ref}
+            )
             form.destroy()
             # actualizar solo la celda de ese día
             try:
