@@ -37,24 +37,24 @@ class CalendarLogic:
     def get_month_calendar_data(self):
         cal = calendar.Calendar(firstweekday=0)
         month_cal = cal.monthdatescalendar(self.current_year, self.current_month)
-        
+
         calendar_data = []
         for week in month_cal:
             week_data = []
             for day in week:
                 day_str = day.isoformat()
-                booking = None
+                reservation = None
                 is_available = True
 
                 if day.month == self.current_month:
-                    booking = self.reservations_manager.get_booking(day_str)
+                    reservation = self.reservations_manager.get_reservation(day_str)
                     is_available = self.reservations_manager.is_available(day_str)
-                
+
                 week_data.append({
                     'date': day,
                     'date_str': day_str,
                     'is_current_month': day.month == self.current_month,
-                    'booking': booking,
+                    'reservation': reservation,
                     'is_available': is_available
                 })
             calendar_data.append(week_data)
@@ -69,30 +69,30 @@ class CalendarLogic:
 
     def get_day_status(self, day):
         day_str = day.isoformat()
-        booking = self.reservations_manager.get_booking(day_str)
+        reservation = self.reservations_manager.get_reservation(day_str)
         is_available = self.reservations_manager.is_available(day_str)
         return {
             'date': day,
             'date_str': day_str,
             'is_current_month': day.month == self.current_month,
-            'booking': booking,
+            'reservation': reservation,
             'is_available': is_available
         }
 
-    def add_or_update_booking(self, day_str, client_data, booking_data):
+    def add_or_update_reservation(self, day_str, client_data, reservation_data):
         first_name = client_data['first_name']
         last_name = client_data['last_name']
         phone = client_data['phone']
-        
+
         client_id = self.clients_manager.add_or_get_client(first_name, last_name, phone)
-        
-        self.reservations_manager.add_booking({
+
+        self.reservations_manager.add_reservation({
             'date': day_str,
-            'amount': booking_data['amount'],
-            'payment_status': booking_data['payment_status'],
-            'payment_method': booking_data['payment_method'],
-            'reference': booking_data.get('reference', ''),
+            'amount': reservation_data['amount'],
+            'payment_status': reservation_data['payment_status'],
+            'payment_method': reservation_data['payment_method'],
+            'reference': reservation_data.get('reference', ''),
         }, client_id)
 
-    def delete_booking(self, day_str):
-        self.reservations_manager.delete_booking(day_str)
+    def delete_reservation(self, day_str):
+        self.reservations_manager.delete_reservation(day_str)

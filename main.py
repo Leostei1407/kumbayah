@@ -13,7 +13,7 @@ class CalendarApp:
     def __init__(self, root):
         self.root = root
         self.root.title('Kumbayah - Calendario de Reservas (offline)')
-        
+
         # Configuración de la base de datos
         self.db_manager = Database('kumbayah.db')
         self.db_manager.create_tables()
@@ -94,7 +94,7 @@ class CalendarApp:
                 day = day_info['date']
                 day_str = day_info['date_str']
                 is_current_month = day_info['is_current_month']
-                booking = day_info['booking']
+                reservation = day_info['reservation']
                 avail = day_info['is_available']
 
                 canvas = tk.Canvas(self.calendar_frame, width=140, height=110, highlightthickness=0)
@@ -120,11 +120,11 @@ class CalendarApp:
                     canvas.itemconfig(rect, fill='#f5f5f5')
                     canvas.itemconfig(name_txt, text='')
                 else:
-                    if booking:
-                        status = booking.get('payment_status','')
+                    if reservation:
+                        status = reservation.get('payment_status','')
                         color = '#ffc0cb' if status == 'Completo' else '#ffcc80'
                         canvas.itemconfig(rect, fill=color)
-                        display_name = f"{booking.get('first_name','')} {booking.get('last_name','')}".strip()
+                        display_name = f"{reservation.get('first_name','')} {reservation.get('last_name','')}".strip()
                         canvas.itemconfig(name_txt, text=display_name)
                     elif not avail:
                         canvas.itemconfig(rect, fill='#eeeeee')
@@ -143,7 +143,7 @@ class CalendarApp:
             if d == day:
                 day_info = self.calendar_logic.get_day_status(d)
                 is_current_month = day_info['is_current_month']
-                booking = day_info['booking']
+                reservation = day_info['reservation']
                 avail = day_info['is_available']
 
                 rect = ids.get('rect')
@@ -159,12 +159,12 @@ class CalendarApp:
                         pass
                     return
 
-                if booking:
-                    status = booking.get('payment_status','')
+                if reservation:
+                    status = reservation.get('payment_status','')
                     color = '#ffc0cb' if status == 'Completo' else '#ffcc80'
                     try:
                         canvas.itemconfig(rect, fill=color)
-                        display_name = f"{booking.get('first_name','')} {booking.get('last_name','')}".strip()
+                        display_name = f"{reservation.get('first_name','')} {reservation.get('last_name','')}".strip()
                         canvas.itemconfig(name_txt, text=display_name)
                     except Exception:
                         pass
@@ -193,22 +193,22 @@ class CalendarApp:
         current_month, _ = self.calendar_logic.get_current_month_year()
         if day.month != current_month:
             return
-        
+
         day_info = self.calendar_logic.get_day_status(day)
-        booking = day_info['booking']
+        reservation = day_info['reservation']
         avail = day_info['is_available']
 
-        if booking:
-            self.show_booking_details(booking)
+        if reservation:
+            self.show_reservation_details(reservation)
         elif not avail:
             messagebox.showinfo('No disponible', 'Este día no está disponible para reservas.')
         else:
-            self.open_booking_form(day_info['date_str'])
+            self.open_reservation_form(day_info['date_str'])
 
-    def show_booking_details(self, booking):
+    def show_reservation_details(self, reservation):
         # Abrir un diálogo de solo lectura con un botón Editar para cambiar a modo edición
         form = tk.Toplevel(self.root)
-        form.title(f"Reserva {booking['date']}")
+        form.title(f"Reserva {reservation['date']}")
         form.geometry('420x340')
 
         info_frame = ttk.Frame(form)
@@ -220,18 +220,18 @@ class CalendarApp:
             for w in info_frame.winfo_children():
                 w.destroy()
             ttk.Label(info_frame, text=f"Cliente:", font=self.font_day).grid(row=0, column=0, sticky='w')
-            ttk.Label(info_frame, text=f"{booking.get('first_name','')} {booking.get('last_name','')}", font=self.font_client).grid(row=0, column=1, sticky='w')
+            ttk.Label(info_frame, text=f"{reservation.get('first_name','')} {reservation.get('last_name','')}", font=self.font_client).grid(row=0, column=1, sticky='w')
             ttk.Label(info_frame, text=f"Teléfono:", font=self.font_day).grid(row=1, column=0, sticky='w')
-            ttk.Label(info_frame, text=f"{booking.get('phone','')}", font=self.font_client).grid(row=1, column=1, sticky='w')
+            ttk.Label(info_frame, text=f"{reservation.get('phone','')}", font=self.font_client).grid(row=1, column=1, sticky='w')
             ttk.Label(info_frame, text=f"Monto:", font=self.font_day).grid(row=2, column=0, sticky='w')
-            ttk.Label(info_frame, text=f"{booking.get('amount','')}", font=self.font_client).grid(row=2, column=1, sticky='w')
+            ttk.Label(info_frame, text=f"{reservation.get('amount','')}", font=self.font_client).grid(row=2, column=1, sticky='w')
             ttk.Label(info_frame, text=f"Estado de pago:", font=self.font_day).grid(row=3, column=0, sticky='w')
-            ttk.Label(info_frame, text=f"{booking.get('payment_status','')}", font=self.font_client).grid(row=3, column=1, sticky='w')
+            ttk.Label(info_frame, text=f"{reservation.get('payment_status','')}", font=self.font_client).grid(row=3, column=1, sticky='w')
             ttk.Label(info_frame, text=f"Método:", font=self.font_day).grid(row=4, column=0, sticky='w')
-            ttk.Label(info_frame, text=f"{booking.get('payment_method','')}", font=self.font_client).grid(row=4, column=1, sticky='w')
-            if booking.get('reference'):
+            ttk.Label(info_frame, text=f"{reservation.get('payment_method','')}", font=self.font_client).grid(row=4, column=1, sticky='w')
+            if reservation.get('reference'):
                 ttk.Label(info_frame, text=f"Referencia:", font=self.font_day).grid(row=5, column=0, sticky='w')
-                ttk.Label(info_frame, text=f"{booking.get('reference')}", font=self.font_client).grid(row=5, column=1, sticky='w')
+                ttk.Label(info_frame, text=f"{reservation.get('reference')}", font=self.font_client).grid(row=5, column=1, sticky='w')
 
         # contenedor de widgets para edición
         edit_widgets = {}
@@ -241,10 +241,10 @@ class CalendarApp:
                 w.destroy()
             labels = ['Nombre','Apellido','Teléfono','Monto a pagar']
             values = {
-                'Nombre': booking['first_name'],
-                'Apellido': booking['last_name'],
-                'Teléfono': booking['phone'],
-                'Monto a pagar': str(booking['amount']),
+                'Nombre': reservation['first_name'],
+                'Apellido': reservation['last_name'],
+                'Teléfono': reservation['phone'],
+                'Monto a pagar': str(reservation['amount']),
             }
             for i, lab in enumerate(labels):
                 ttk.Label(info_frame, text=lab).grid(row=i, column=0, sticky='e', padx=6, pady=4)
@@ -256,7 +256,7 @@ class CalendarApp:
             ttk.Label(info_frame, text='Estado de pago').grid(row=4, column=0, sticky='e', padx=6, pady=4)
             pay_status = ttk.Combobox(info_frame, values=['Completo','Mitad','Nada'], state='readonly')
             try:
-                pay_status.current(['Completo','Mitad','Nada'].index(booking['payment_status']))
+                pay_status.current(['Completo','Mitad','Nada'].index(reservation['payment_status']))
             except Exception:
                 pay_status.current(0)
             pay_status.grid(row=4, column=1, padx=6, pady=4)
@@ -265,7 +265,7 @@ class CalendarApp:
             ttk.Label(info_frame, text='Método de pago').grid(row=5, column=0, sticky='e', padx=6, pady=4)
             pay_method = ttk.Combobox(info_frame, values=['PagoMovil','Efectivo','Transferencia'], state='readonly')
             try:
-                pay_method.current(['PagoMovil','Efectivo','Transferencia'].index(booking['payment_method']))
+                pay_method.current(['PagoMovil','Efectivo','Transferencia'].index(reservation['payment_method']))
             except Exception:
                 pay_method.current(0)
             pay_method.grid(row=5, column=1, padx=6, pady=4)
@@ -273,7 +273,7 @@ class CalendarApp:
 
             ref_label = ttk.Label(info_frame, text='Referencia (>=6 dígitos)')
             ref_entry = ttk.Entry(info_frame)
-            ref_entry.insert(0, booking.get('reference',''))
+            ref_entry.insert(0, reservation.get('reference',''))
 
             def on_method_change(event=None):
                 m = pay_method.get()
@@ -319,19 +319,19 @@ class CalendarApp:
                     messagebox.showerror('Error', 'Referencia debe tener al menos 6 dígitos.')
                     return
 
-            self.calendar_logic.add_or_update_booking(
-                booking['date'],
+            self.calendar_logic.add_or_update_reservation(
+                reservation['date'],
                 {'first_name': fn, 'last_name': ln, 'phone': phone},
                 {'amount': amount_val, 'payment_status': ps, 'payment_method': pm, 'reference': ref}
             )
-            # actualizar el objeto booking local y volver a solo lectura
-            booking['first_name'] = fn
-            booking['last_name'] = ln
-            booking['phone'] = phone
-            booking['amount'] = amount_val
-            booking['payment_status'] = ps
-            booking['payment_method'] = pm
-            booking['reference'] = ref
+            # actualizar el objeto reservation local y volver a solo lectura
+            reservation['first_name'] = fn
+            reservation['last_name'] = ln
+            reservation['phone'] = phone
+            reservation['amount'] = amount_val
+            reservation['payment_status'] = ps
+            reservation['payment_method'] = pm
+            reservation['reference'] = ref
             for w in btn_frame.winfo_children():
                 w.destroy()
             ttk.Button(btn_frame, text='Editar', command=enter_edit_mode).grid(row=0, column=0, padx=6)
@@ -350,11 +350,11 @@ class CalendarApp:
 
         def delete():
             if messagebox.askyesno('Confirmar', '¿Eliminar esta reserva?'):
-                self.calendar_logic.delete_booking(booking['date'])
+                self.calendar_logic.delete_reservation(reservation['date'])
                 form.destroy()
                 # actualizar solo la celda de ese día
                 try:
-                    d = datetime.fromisoformat(booking['date']).date()
+                    d = datetime.fromisoformat(reservation['date']).date()
                     self.update_cell(d)
                 except Exception:
                     self.draw_calendar()
@@ -368,7 +368,7 @@ class CalendarApp:
 
         show_readonly()
 
-    def open_booking_form(self, day_str):
+    def open_reservation_form(self, day_str):
         form = tk.Toplevel(self.root)
         form.title(f'Reservar {day_str}')
 
@@ -430,7 +430,7 @@ class CalendarApp:
                     messagebox.showerror('Error', 'Referencia debe tener al menos 6 dígitos.')
                     return
 
-            self.calendar_logic.add_or_update_booking(
+            self.calendar_logic.add_or_update_reservation(
                 day_str,
                 {'first_name': fn, 'last_name': ln, 'phone': phone},
                 {'amount': amount_val, 'payment_status': ps, 'payment_method': pm, 'reference': ref}
