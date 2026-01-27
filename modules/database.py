@@ -26,9 +26,9 @@ class Database:
             phone TEXT UNIQUE
         )
         ''')
-        # Tabla bookings normalizada que referencia a clients
+        # Tabla reservations normalizada que referencia a clients
         cur.execute('''
-        CREATE TABLE IF NOT EXISTS bookings (
+        CREATE TABLE IF NOT EXISTS reservations (
             date TEXT PRIMARY KEY,
             client_id INTEGER,
             amount REAL,
